@@ -38,7 +38,7 @@ body {
 }
 .topbar a { color: var(--text-2); text-decoration: none; font-size: 13px; }
 .topbar a:hover { color: var(--accent); }
-.wrap { max-width: 1060px; margin: 0 auto; padding: 24px; }
+.wrap { max-width: 1060px; margin: 0 auto; padding: 16px 24px; }
 
 /* パスワードゲート */
 .gate {
@@ -67,20 +67,20 @@ body {
 .btn-primary:disabled { opacity: .6; cursor: default; }
 
 /* 検索 */
-.searchbox-wrap { position: relative; margin-bottom: 20px; }
+.searchbox-wrap { position: relative; margin-bottom: 14px; }
 .searchbox {
-  width: 100%; font-size: 20px; padding: 16px 20px 16px 52px;
+  width: 100%; font-size: 18px; padding: 12px 20px 12px 48px;
   border: 1px solid var(--border-strong); border-radius: var(--radius-lg);
   background: var(--surface); box-shadow: var(--shadow); font-family: inherit;
 }
 .searchbox:focus { outline: none; border-color: var(--accent); box-shadow: var(--focus); }
 .searchbox-icon {
   position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
-  font-size: 20px; color: var(--muted); pointer-events: none;
+  font-size: 18px; color: var(--muted); pointer-events: none;
 }
-.hint { font-size: 12px; color: var(--muted); margin: 8px 0 0 8px; }
+.hint { font-size: 11px; color: var(--muted); margin: 5px 0 0 6px; }
 
-.section { margin-bottom: 28px; }
+.section { margin-bottom: 20px; }
 .section-title {
   display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;
   color: var(--text-2); margin-bottom: 10px;
@@ -93,7 +93,7 @@ body {
 .ks-item {
   display: flex; align-items: center; gap: 8px;
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 8px 12px; box-shadow: var(--shadow); min-width: 0;
+  padding: 3px 10px; box-shadow: var(--shadow); min-width: 0;
 }
 .ks-item:hover { border-color: var(--border-strong); }
 .ks-item.is-withdrawn { opacity: .72; }
@@ -110,12 +110,13 @@ body {
 }
 .ks-code-btn:hover { border-color: var(--accent); color: var(--accent); }
 .ks-code-btn.copied { background: var(--done-bg); border-color: var(--done-fg); color: var(--done-fg); }
-.ks-item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+/* 名前とメタを1行に並べてコンパクトにする(PCで20件/画面) */
+.ks-item-main { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; line-height: 1.6; }
 .ks-item-name {
   font-size: 13px; font-weight: 500; color: var(--koumuten);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
 }
-.ks-item-meta { font-size: 11px; color: var(--muted); display: flex; gap: 6px; flex-wrap: wrap; }
+.ks-item-meta { font-size: 11px; color: var(--muted); display: flex; gap: 6px; flex-shrink: 0; margin-left: auto; }
 .badge-withdrawn { background: var(--open-bg); color: var(--open-fg); border-radius: 999px; padding: 0 8px; font-size: 11px; }
 .badge-use { background: var(--accent-subtle); color: var(--accent); border-radius: 999px; padding: 0 8px; font-size: 11px; }
 .empty {
@@ -268,14 +269,15 @@ body {
     var r = search(document.getElementById('q').value);
     var html = '';
     if (r.mode === 'landing') {
+      // お気に入り(登録順)を先頭に、続けてよく使う(利用回数順・お気に入りと重複しないもの)。
+      // PCの1画面に収まるよう、合わせて最大20件を1つの表にまとめる。
       var favs = loadFavs().map(function (c) { return byCode[c]; }).filter(Boolean);
-      var usagePairs = Object.keys(r.usage).map(function (c) { return [r.usage[c], byCode[c]]; }).filter(function (x) { return x[1]; });
+      var usagePairs = Object.keys(r.usage).map(function (c) { return [r.usage[c], byCode[c]]; })
+        .filter(function (x) { return x[1] && !r.favSet[x[1].c]; });
       usagePairs.sort(function (a, b) { return b[0] - a[0]; });
-      var freq = usagePairs.slice(0, 15).map(function (x) { return x[1]; });
-      html += '<div class="section"><div class="section-title">&#9733; お気に入り <span class="section-count">' + favs.length + '件</span></div>' +
-        (favs.length ? listHtml(favs, r.favSet, r.usage) : '<div class="empty">お気に入りはまだありません。検索結果の★を押すと登録できます。</div>') + '</div>';
-      html += '<div class="section"><div class="section-title">&#128337; よく使う工務店 <span class="section-count">' + freq.length + '件</span></div>' +
-        (freq.length ? listHtml(freq, r.favSet, r.usage) : '<div class="empty">まだ利用履歴がありません。コードをコピーすると、よく使う工務店として上位に表示されます。</div>') + '</div>';
+      var combined = favs.concat(usagePairs.map(function (x) { return x[1]; })).slice(0, 20);
+      html += '<div class="section"><div class="section-title">&#9733; お気に入り・よく使う工務店 <span class="section-count">' + combined.length + '件</span></div>' +
+        (combined.length ? listHtml(combined, r.favSet, r.usage) : '<div class="empty">まだありません。検索して★を押すか、コードをコピーするとここに並びます。</div>') + '</div>';
     } else {
       html += '<div class="section"><div class="section-title">検索結果 <span class="section-count">' + r.items.length + '件</span></div>' +
         (r.items.length ? listHtml(r.items, r.favSet, r.usage) : '<div class="empty">一致する工務店が見つかりませんでした。</div>') + '</div>';
