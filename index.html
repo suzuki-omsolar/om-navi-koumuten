@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>工務店コード検索</title>
+<style>
+/* ネオOMナビ(v2)のデザイントークン */
+:root {
+  --bg: #f7f8fa; --surface: #ffffff; --surface-hover: #f3f4f6;
+  --border: #e5e7eb; --border-strong: #d1d5db;
+  --text: #111827; --text-2: #6b7280; --muted: #9ca3af;
+  --accent: #4f46e5; --accent-hover: #4338ca; --accent-subtle: #eef2ff;
+  --open-bg: #fef2f2; --open-fg: #b91c1c;
+  --done-bg: #f0fdf4; --done-fg: #15803d;
+  --koumuten: #c026d3;
+  --mono: "SFMono-Regular", Consolas, "Courier New", monospace;
+  --radius: 8px; --radius-sm: 6px; --radius-lg: 12px;
+  --shadow: 0 1px 2px rgba(16,24,40,.05);
+  --focus: 0 0 0 3px rgba(79,70,229,.15);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: "Yu Gothic UI", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Segoe UI", sans-serif;
+  font-size: 14px; line-height: 1.55;
+}
+.topbar {
+  height: 56px; background: var(--surface); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px; position: sticky; top: 0; z-index: 5;
+}
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 16px; }
+.brand-mark {
+  width: 28px; height: 28px; border-radius: var(--radius);
+  background: var(--accent); color: #fff; font-size: 12px; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.topbar a { color: var(--text-2); text-decoration: none; font-size: 13px; }
+.topbar a:hover { color: var(--accent); }
+.wrap { max-width: 1060px; margin: 0 auto; padding: 24px; }
+
+/* パスワードゲート */
+.gate {
+  position: fixed; inset: 0; background: var(--bg); z-index: 50;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.gate-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow); padding: 32px; width: 100%; max-width: 360px; text-align: center;
+}
+.gate-card h1 { font-size: 16px; margin: 0 0 4px; }
+.gate-card p { color: var(--text-2); font-size: 12px; margin: 0 0 16px; }
+.gate-card input {
+  width: 100%; font-size: 16px; padding: 10px 12px; margin-bottom: 12px;
+  border: 1px solid var(--border-strong); border-radius: var(--radius); text-align: center;
+}
+.gate-card input:focus { outline: none; border-color: var(--accent); box-shadow: var(--focus); }
+.gate-err { color: var(--open-fg); font-size: 12px; min-height: 18px; margin: 0 0 8px; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  padding: 9px 16px; border-radius: var(--radius); border: 1px solid transparent;
+  font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit;
+}
+.btn-primary { background: var(--accent); color: #fff; width: 100%; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:disabled { opacity: .6; cursor: default; }
+
+/* 検索 */
+.searchbox-wrap { position: relative; margin-bottom: 20px; }
+.searchbox {
+  width: 100%; font-size: 20px; padding: 16px 20px 16px 52px;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-lg);
+  background: var(--surface); box-shadow: var(--shadow); font-family: inherit;
+}
+.searchbox:focus { outline: none; border-color: var(--accent); box-shadow: var(--focus); }
+.searchbox-icon {
+  position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+  font-size: 20px; color: var(--muted); pointer-events: none;
+}
+.hint { font-size: 12px; color: var(--muted); margin: 8px 0 0 8px; }
+
+.section { margin-bottom: 28px; }
+.section-title {
+  display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;
+  color: var(--text-2); margin-bottom: 10px;
+}
+.section-count { font-weight: 400; color: var(--muted); }
+
+/* 星・コード・工務店名 の2列表 */
+.ks-list { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px 12px; }
+@media (max-width: 760px) { .ks-list { grid-template-columns: 1fr; } }
+.ks-item {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 8px 12px; box-shadow: var(--shadow); min-width: 0;
+}
+.ks-item:hover { border-color: var(--border-strong); }
+.ks-item.is-withdrawn { opacity: .72; }
+.ks-fav-btn {
+  border: none; background: transparent; font-size: 19px; line-height: 1;
+  cursor: pointer; color: var(--muted); padding: 2px; flex-shrink: 0;
+}
+.ks-fav-btn.is-favorite { color: #f5b301; }
+.ks-code-btn {
+  flex-shrink: 0; font-family: var(--mono); font-size: 14px; font-weight: 600;
+  letter-spacing: .04em; color: var(--text); background: var(--bg);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  padding: 3px 8px; cursor: pointer; width: 68px; text-align: center; transition: all .15s ease;
+}
+.ks-code-btn:hover { border-color: var(--accent); color: var(--accent); }
+.ks-code-btn.copied { background: var(--done-bg); border-color: var(--done-fg); color: var(--done-fg); }
+.ks-item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.ks-item-name {
+  font-size: 13px; font-weight: 500; color: var(--koumuten);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ks-item-meta { font-size: 11px; color: var(--muted); display: flex; gap: 6px; flex-wrap: wrap; }
+.badge-withdrawn { background: var(--open-bg); color: var(--open-fg); border-radius: 999px; padding: 0 8px; font-size: 11px; }
+.badge-use { background: var(--accent-subtle); color: var(--accent); border-radius: 999px; padding: 0 8px; font-size: 11px; }
+.empty {
+  text-align: center; color: var(--muted); font-size: 13px; padding: 32px;
+  background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius);
+}
+</style>
+</head>
+<body>
+
+<!-- パスワードゲート(データはAES-GCM暗号化済み。正しいパスワードでのみ復号できる) -->
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <div class="brand" style="justify-content:center; margin-bottom:12px;"><span class="brand-mark">OM</span> 工務店コード検索</div>
+    <h1>パスワードを入力してください</h1>
+    <p>データは暗号化されています</p>
+    <input type="password" id="pwInput" autocomplete="current-password" autofocus>
+    <p class="gate-err" id="gateErr"></p>
+    <button class="btn btn-primary" id="unlockBtn">開く</button>
+  </div>
+</div>
+
+<div class="topbar" style="display:none;" id="topbar">
+  <div class="brand"><span class="brand-mark">OM</span> 工務店コード検索</div>
+  <a href="call.html">☎ 通話文字起こしツール →</a>
+</div>
+
+<div class="wrap" style="display:none;" id="app">
+  <div class="searchbox-wrap">
+    <span class="searchbox-icon">&#128269;</span>
+    <input type="text" class="searchbox" id="q" autocomplete="off"
+           placeholder="工務店名を入力（漢字・ひらがな・カタカナ・一部でOK）">
+    <p class="hint">一文字からあいまい検索できます。数字のコードをクリックするとコードだけをコピーします。</p>
+  </div>
+  <div id="results"></div>
+</div>
+
+<script src="data.js"></script>
+<script>
+(function () {
+  'use strict';
+  /* ===== 復号 ===== */
+  var DIRECTORY = null;  // [{c,n,k,p,w, norm}]
+  var b64d = function (s) { var bin = atob(s), u = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; };
+
+  async function tryUnlock(password) {
+    var enc = window.OM_ENC;
+    var baseKey = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
+    var key = await crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt: b64d(enc.salt), iterations: enc.iter, hash: 'SHA-256' },
+      baseKey, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+    var plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64d(enc.iv) }, key, b64d(enc.data));
+    return JSON.parse(new TextDecoder().decode(plain));
+  }
+
+  /* ===== 正規化・類似(Django版 search_utils.py の移植) ===== */
+  var NOISE_RE = /[\s　()（）株有限会社合同名事業協同組合・･.,、。／/\-ー–—~〜「」『』【】\[\]]+/g;
+  function kataToHira(s) {
+    var out = '';
+    for (var i = 0; i < s.length; i++) {
+      var c = s.charCodeAt(i);
+      out += (c >= 0x30A1 && c <= 0x30F6) ? String.fromCharCode(c - 0x60) : s[i];
+    }
+    return out;
+  }
+  function normalize(text) {
+    if (!text) return '';
+    return kataToHira(text.normalize('NFKC').toLowerCase()).replace(NOISE_RE, '');
+  }
+  function bigrams(s) {
+    if (s.length < 2) return s ? [s] : [];
+    var set = {}, out = [];
+    for (var i = 0; i < s.length - 1; i++) { var g = s.substr(i, 2); if (!set[g]) { set[g] = 1; out.push(g); } }
+    return out;
+  }
+  function similarity(a, b) {
+    if (!a || !b) return 0;
+    var A = bigrams(a), B = bigrams(b);
+    if (!A.length || !B.length) return 0;
+    var setB = {}; B.forEach(function (g) { setB[g] = 1; });
+    var inter = 0; A.forEach(function (g) { if (setB[g]) inter++; });
+    return 2 * inter / (A.length + B.length);
+  }
+
+  /* ===== お気に入り・利用履歴(このブラウザに保存) ===== */
+  function loadFavs() { try { return JSON.parse(localStorage.getItem('omk_favs') || '[]'); } catch (e) { return []; } }
+  function saveFavs(a) { localStorage.setItem('omk_favs', JSON.stringify(a)); }
+  function loadUsage() { try { return JSON.parse(localStorage.getItem('omk_usage') || '{}'); } catch (e) { return {}; } }
+  function saveUsage(o) { localStorage.setItem('omk_usage', JSON.stringify(o)); }
+
+  /* ===== 検索(directory_search.py の移植) ===== */
+  var SUBSTRING_LIMIT = 60, RESULT_LIMIT = 40, SIM_FALLBACK = 8, SIM_MIN = 0.3;
+  function score(e, qn, favSet, usage) {
+    var s = 0;
+    if (favSet[e.c]) s += 1000;
+    s += Math.min(usage[e.c] || 0, 50) * 5;
+    var nn = normalize(e.n), kn = normalize(e.k);
+    if (nn === qn) s += 500;
+    else if (nn.indexOf(qn) === 0) s += 200;
+    else if (kn.indexOf(qn) === 0) s += 120;
+    if (nn) s += 30 * (qn.length / Math.max(nn.length, 1));
+    if (e.w) s -= 40;
+    return s;
+  }
+  function search(query) {
+    var qn = normalize(query);
+    var favSet = {}; loadFavs().forEach(function (c) { favSet[c] = 1; });
+    var usage = loadUsage();
+    if (!qn) return { mode: 'landing', favSet: favSet, usage: usage };
+
+    var scored = [], seen = {};
+    for (var i = 0; i < DIRECTORY.length && scored.length < SUBSTRING_LIMIT; i++) {
+      var e = DIRECTORY[i];
+      if (e.norm.indexOf(qn) !== -1) { scored.push([score(e, qn, favSet, usage), e]); seen[e.c] = 1; }
+    }
+    if (scored.length < SIM_FALLBACK && qn.length >= 2) {
+      for (var j = 0; j < DIRECTORY.length; j++) {
+        var t = DIRECTORY[j];
+        if (seen[t.c]) continue;
+        var sim = similarity(qn, normalize(t.n));
+        if (sim < SIM_MIN) sim = Math.max(sim, similarity(qn, normalize(t.k)));
+        if (sim >= SIM_MIN) scored.push([sim * 100 - 300, t]);
+      }
+    }
+    scored.sort(function (a, b) { return b[0] - a[0]; });
+    return { mode: 'search', items: scored.slice(0, RESULT_LIMIT).map(function (x) { return x[1]; }), favSet: favSet, usage: usage };
+  }
+
+  /* ===== 描画 ===== */
+  var resultsEl = document.getElementById('results');
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function itemHtml(e, favSet, usage) {
+    var use = usage[e.c] || 0;
+    return '<div class="ks-item' + (e.w ? ' is-withdrawn' : '') + '">' +
+      '<button type="button" class="ks-fav-btn' + (favSet[e.c] ? ' is-favorite' : '') + '" data-code="' + esc(e.c) + '" title="お気に入り">' + (favSet[e.c] ? '&#9733;' : '&#9734;') + '</button>' +
+      '<button type="button" class="ks-code-btn" data-code="' + esc(e.c) + '" title="クリックでコードをコピー">' + esc(e.c) + '</button>' +
+      '<div class="ks-item-main">' +
+        '<span class="ks-item-name">' + esc(e.n) + '</span>' +
+        '<span class="ks-item-meta">' + (e.p ? esc(e.p) : '') +
+          (e.w ? '<span class="badge-withdrawn">退会</span>' : '') +
+          (use ? '<span class="badge-use">利用' + use + '回</span>' : '') +
+        '</span>' +
+      '</div></div>';
+  }
+  function listHtml(items, favSet, usage) {
+    return '<div class="ks-list">' + items.map(function (e) { return itemHtml(e, favSet, usage); }).join('') + '</div>';
+  }
+  var byCode = {};
+  function render() {
+    var r = search(document.getElementById('q').value);
+    var html = '';
+    if (r.mode === 'landing') {
+      var favs = loadFavs().map(function (c) { return byCode[c]; }).filter(Boolean);
+      var usagePairs = Object.keys(r.usage).map(function (c) { return [r.usage[c], byCode[c]]; }).filter(function (x) { return x[1]; });
+      usagePairs.sort(function (a, b) { return b[0] - a[0]; });
+      var freq = usagePairs.slice(0, 15).map(function (x) { return x[1]; });
+      html += '<div class="section"><div class="section-title">&#9733; お気に入り <span class="section-count">' + favs.length + '件</span></div>' +
+        (favs.length ? listHtml(favs, r.favSet, r.usage) : '<div class="empty">お気に入りはまだありません。検索結果の★を押すと登録できます。</div>') + '</div>';
+      html += '<div class="section"><div class="section-title">&#128337; よく使う工務店 <span class="section-count">' + freq.length + '件</span></div>' +
+        (freq.length ? listHtml(freq, r.favSet, r.usage) : '<div class="empty">まだ利用履歴がありません。コードをコピーすると、よく使う工務店として上位に表示されます。</div>') + '</div>';
+    } else {
+      html += '<div class="section"><div class="section-title">検索結果 <span class="section-count">' + r.items.length + '件</span></div>' +
+        (r.items.length ? listHtml(r.items, r.favSet, r.usage) : '<div class="empty">一致する工務店が見つかりませんでした。</div>') + '</div>';
+    }
+    resultsEl.innerHTML = html;
+  }
+
+  /* ===== 操作(コピー・お気に入り) ===== */
+  async function copyText(t) {
+    try { await navigator.clipboard.writeText(t); }
+    catch (e) {
+      var ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta);
+      ta.select(); try { document.execCommand('copy'); } catch (_) {} ta.remove();
+    }
+  }
+  document.addEventListener('click', function (ev) {
+    var codeBtn = ev.target.closest('.ks-code-btn');
+    if (codeBtn) {
+      var code = codeBtn.dataset.code;
+      copyText(code);
+      var usage = loadUsage(); usage[code] = (usage[code] || 0) + 1; saveUsage(usage);
+      var orig = codeBtn.textContent;
+      codeBtn.classList.add('copied'); codeBtn.textContent = 'コピー✓';
+      setTimeout(function () { codeBtn.classList.remove('copied'); codeBtn.textContent = orig; }, 1200);
+      return;
+    }
+    var favBtn = ev.target.closest('.ks-fav-btn');
+    if (favBtn) {
+      var c = favBtn.dataset.code, favs = loadFavs(), i = favs.indexOf(c);
+      if (i >= 0) favs.splice(i, 1); else favs.unshift(c);
+      saveFavs(favs);
+      render();
+    }
+  });
+
+  /* ===== 起動 ===== */
+  var debounce = null;
+  document.getElementById('q').addEventListener('input', function () {
+    clearTimeout(debounce); debounce = setTimeout(render, 150);
+  });
+
+  function boot(rows) {
+    DIRECTORY = rows.map(function (e) { e.norm = normalize(e.n) + normalize(e.k); return e; });
+    DIRECTORY.forEach(function (e) { byCode[e.c] = e; });
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('topbar').style.display = '';
+    document.getElementById('app').style.display = '';
+    document.getElementById('q').focus();
+    render();
+  }
+
+  var btn = document.getElementById('unlockBtn'), pw = document.getElementById('pwInput'), err = document.getElementById('gateErr');
+  async function attempt() {
+    var p = pw.value;
+    if (!p) return;
+    btn.disabled = true; err.textContent = '';
+    try {
+      var rows = await tryUnlock(p);
+      sessionStorage.setItem('omk_pw', p); // このタブの間は再入力不要にする
+      boot(rows);
+    } catch (e) {
+      err.textContent = 'パスワードが違います';
+      btn.disabled = false; pw.select();
+    }
+  }
+  btn.addEventListener('click', attempt);
+  pw.addEventListener('keydown', function (e) { if (e.key === 'Enter') attempt(); });
+
+  // 同一タブ内の再訪はパスワード自動復元
+  var saved = sessionStorage.getItem('omk_pw');
+  if (saved) { pw.value = saved; attempt(); }
+})();
+</script>
+</body>
+</html>
