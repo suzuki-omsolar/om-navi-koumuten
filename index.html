@@ -269,15 +269,17 @@ body {
     var r = search(document.getElementById('q').value);
     var html = '';
     if (r.mode === 'landing') {
-      // お気に入り(登録順)を先頭に、続けてよく使う(利用回数順・お気に入りと重複しないもの)。
-      // PCの1画面に収まるよう、合わせて最大20件を1つの表にまとめる。
-      var favs = loadFavs().map(function (c) { return byCode[c]; }).filter(Boolean);
+      // 上段: お気に入り(登録順・最大10件) / 下段: よく使う(利用回数順・お気に入り除く・最大10件)
+      // 各10件×2列=5行ずつで、合計がPCの1画面に収まる。
+      var favs = loadFavs().map(function (c) { return byCode[c]; }).filter(Boolean).slice(0, 10);
       var usagePairs = Object.keys(r.usage).map(function (c) { return [r.usage[c], byCode[c]]; })
         .filter(function (x) { return x[1] && !r.favSet[x[1].c]; });
       usagePairs.sort(function (a, b) { return b[0] - a[0]; });
-      var combined = favs.concat(usagePairs.map(function (x) { return x[1]; })).slice(0, 20);
-      html += '<div class="section"><div class="section-title">&#9733; お気に入り・よく使う工務店 <span class="section-count">' + combined.length + '件</span></div>' +
-        (combined.length ? listHtml(combined, r.favSet, r.usage) : '<div class="empty">まだありません。検索して★を押すか、コードをコピーするとここに並びます。</div>') + '</div>';
+      var freq = usagePairs.slice(0, 10).map(function (x) { return x[1]; });
+      html += '<div class="section"><div class="section-title">&#9733; お気に入り <span class="section-count">' + favs.length + '件</span></div>' +
+        (favs.length ? listHtml(favs, r.favSet, r.usage) : '<div class="empty">お気に入りはまだありません。検索結果の★を押すと登録できます。</div>') + '</div>';
+      html += '<div class="section"><div class="section-title">&#128337; よく使う工務店 <span class="section-count">' + freq.length + '件</span></div>' +
+        (freq.length ? listHtml(freq, r.favSet, r.usage) : '<div class="empty">まだ利用履歴がありません。コードをコピーするとここに並びます。</div>') + '</div>';
     } else {
       html += '<div class="section"><div class="section-title">検索結果 <span class="section-count">' + r.items.length + '件</span></div>' +
         (r.items.length ? listHtml(r.items, r.favSet, r.usage) : '<div class="empty">一致する工務店が見つかりませんでした。</div>') + '</div>';
