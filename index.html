@@ -324,6 +324,10 @@ body {
   function boot(rows) {
     DIRECTORY = rows.map(function (e) { e.norm = normalize(e.n) + normalize(e.k); return e; });
     DIRECTORY.forEach(function (e) { byCode[e.c] = e; });
+    // 通話ツール(call.html)が会社名→工務店コードを引けるよう、コードと名称だけを共有保存する
+    try {
+      localStorage.setItem('omk_dir', JSON.stringify(rows.map(function (e) { return { c: e.c, n: e.n, k: e.k }; })));
+    } catch (e) {}
     document.getElementById('gate').style.display = 'none';
     document.getElementById('topbar').style.display = '';
     document.getElementById('app').style.display = '';
